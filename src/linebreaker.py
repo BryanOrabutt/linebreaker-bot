@@ -129,6 +129,8 @@ for submission in subreddit.stream.submissions():
         pass
     else:
         blocks = paragraphify(submission.selftext) #list of paragraphs created
+        if len(blocks) == 1:
+            continue
 
         reply_str = ''
         for block in blocks: #create new reply string using created paragraphs and adding linebreaks
