@@ -80,7 +80,12 @@ def paragraphify(str):
 
     return paragraphs
 
-
+def isValid(str):
+    retval = '\n\n' in str
+    retval = retval or len(str.split(' ')) < 2*WORDS_PER_PARAGRAPH
+    retval = retval or '  \n' in str
+    retval = retval or '\\\n' in str
+    return retval
 
 #Read OAuth keys and reddit login credentials from file.
 try:
@@ -121,7 +126,7 @@ for submission in subreddit.stream.submissions():
     comments = submission.comments.list()
     nparts = 1 #number of messages needed to fully paragraphify
     words = submission.selftext.split(' ')
-    if '\n\n' in submission.selftext or (2 * WORDS_PER_PARAGRAPH) > len(words): #no need to paragraphify
+    if isValid(submission.selftext):
         pass
     else:
         blocks = paragraphify(submission.selftext) #list of paragraphs created
@@ -160,7 +165,7 @@ for submission in subreddit.stream.submissions():
         nparts = 1
         words = comment.body.split(' ')
 
-        if '\n\n' in comment.body or (2 * WORDS_PER_PARAGRAPH) > len(words):
+        if isValid(comment.body):
             pass
         else:
             blocks = paragraphify(comment.body)
