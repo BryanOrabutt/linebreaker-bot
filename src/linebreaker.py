@@ -2,6 +2,7 @@ import praw
 from praw.models import MoreComments
 from prawcore.exceptions import Forbidden
 from time import sleep
+import re
 
 COMMENT_MAX = 10000
 WORDS_PER_PARAGRAPH = 125
@@ -82,7 +83,7 @@ def paragraphify(str):
     return paragraphs
 
 def isValid(str):
-    retval = '\n\n' in str
+    retval = '\n' in str
     retval = retval or len(str.split(' ')) < 3*WORDS_PER_PARAGRAPH
     retval = retval or '  \n' in str
     retval = retval or '\\\n' in str
@@ -135,7 +136,7 @@ for submission in subreddit.stream.submissions():
         reply_str = ''
         for block in blocks: #create new reply string using created paragraphs and adding linebreaks
             reply_str += block + '\n\n&nbsp;\n\n'
-            if (len(reply_str + block) + 50) > COMMENT_MAX: #adding a paragraph will exceed character limit
+            if (len(reply_str + block) + 100) > COMMENT_MAX: #adding a paragraph will exceed character limit
                 reply_str = 'PART {}\n\n&nbsp;\n\n'.format(nparts) + reply_str #add PART header
                 try: #try to post a comment
                     submission.reply(reply_str)
