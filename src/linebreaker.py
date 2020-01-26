@@ -156,7 +156,7 @@ for submission in subreddit.stream.submissions():
     for comment in comments:
         nparts = 1
         words = comment.body.split(' ')
-        if comment.author.id == uid:
+        if comment.author.name == username:
             continue
 
         if '\n\n' in comment.body or (2 * WORDS_PER_PARAGRAPH) > len(words):
