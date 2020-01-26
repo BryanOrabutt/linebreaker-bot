@@ -1,5 +1,6 @@
 import praw
 from praw.models import MoreComments
+from prawcore.exceptions import Forbidden
 from time import sleep
 
 COMMENT_MAX = 10000
@@ -118,12 +119,17 @@ reddit = praw.Reddit(user_agent='Linebreaker (by /u/otiskingofbidness)',
 
 #choose a subreddit to watch
 subreddit = reddit.subreddit('all')
+log = open("./linebreaker-bot.log", "a+")
 
 #watch submission stream of the subreddit for new submissions (starting with the 100 previous posts)
 for submission in subreddit.stream.submissions():
 
     submission.comment_sort = 'new'
-    comments = submission.comments.list()
+    try:
+        comments = submission.comments.list()
+    except Forbidden:
+        log.write('linebreaker-bot has been banned from r/{}!'.format(submission.subreddit))
+        continue
     nparts = 1 #number of messages needed to fully paragraphify
     words = submission.selftext.split(' ')
     if isValid(submission.selftext):
@@ -145,6 +151,9 @@ for submission in subreddit.stream.submissions():
                     submission.reply(reply_str)
                     reply_str = ''
                     nparts += 1
+                except Forbidden:
+                    log.write('linebreaker-bot has been banned from r/{}!'.format(submission.subreddit))
+                    continue
 
 
         reply_str += bot_reply.format('/u/' + submission.author.name) + '\n\n' + bot_author
@@ -157,6 +166,9 @@ for submission in subreddit.stream.submissions():
         except praw.exceptions.APIException:
             sleep(10)
             submission.reply(reply_str)
+        except Forbidden:
+            log.write('linebreaker-bot has been banned from r/{}!'.format(submission.subreddit))
+            continue
 
     #same as above but iterating over comments in a thread.
     for comment in comments:
@@ -183,6 +195,9 @@ for submission in subreddit.stream.submissions():
                         comment.reply(reply_str)
                         reply_str = ''
                         nparts += 1
+                    except Forbidden:
+                        log.write('linebreaker-bot has been banned from r/{}!'.format(submission.subreddit))
+                        continue
 
             reply_str += bot_reply.format('/u/' + comment.author.name) + '\n\n' + bot_author
 
@@ -194,3 +209,6 @@ for submission in subreddit.stream.submissions():
             except praw.exceptions.APIException:
                 sleep(10)
                 comment.reply(reply_str)
+            except Forbidden:
+                log.write('linebreaker-bot has been banned from r/{}!'.format(submission.subreddit))
+                continue
