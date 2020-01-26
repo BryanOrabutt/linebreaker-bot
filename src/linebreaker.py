@@ -4,7 +4,7 @@ from prawcore.exceptions import Forbidden
 from time import sleep
 
 COMMENT_MAX = 10000
-WORDS_PER_PARAGRAPH = 150
+WORDS_PER_PARAGRAPH = 125
 punctuation_list = ['.','!','?']
 
 bot_reply = "Hey {}, it looks like you posted a wall of text. I have seperated it into paragraphs for you!"
@@ -83,7 +83,7 @@ def paragraphify(str):
 
 def isValid(str):
     retval = '\n\n' in str
-    retval = retval or len(str.split(' ')) < 2*WORDS_PER_PARAGRAPH
+    retval = retval or len(str.split(' ')) < 3*WORDS_PER_PARAGRAPH
     retval = retval or '  \n' in str
     retval = retval or '\\\n' in str
     return retval
