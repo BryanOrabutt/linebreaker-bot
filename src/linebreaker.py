@@ -1,4 +1,5 @@
 import praw
+from praw.models import MoreComments
 from time import sleep
 
 COMMENT_MAX = 10000
@@ -154,10 +155,10 @@ for submission in subreddit.stream.submissions():
 
     #same as above but iterating over comments in a thread.
     for comment in comments:
+        if isinstance(comment, MoreComments):
+            continue
         nparts = 1
         words = comment.body.split(' ')
-        if comment.author.name == username:
-            continue
 
         if '\n\n' in comment.body or (2 * WORDS_PER_PARAGRAPH) > len(words):
             pass
