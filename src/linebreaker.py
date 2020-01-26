@@ -7,7 +7,7 @@ COMMENT_MAX = 10000
 WORDS_PER_PARAGRAPH = 150
 punctuation_list = ['.','!','?']
 
-bot_reply = "Hey {} looks like you posted a wall of text. I have seperated it into paragraphs for you!"
+bot_reply = "Hey {}, it looks like you posted a wall of text. I have seperated it into paragraphs for you!"
 bot_author = "This bot is maintained by /u/otiskingofbidness. Please let me know if you encounter any issues with it :)"
 
 '''
@@ -123,13 +123,6 @@ log = open("./linebreaker-bot.log", "a+")
 
 #watch submission stream of the subreddit for new submissions (starting with the 100 previous posts)
 for submission in subreddit.stream.submissions():
-
-    submission.comment_sort = 'new'
-    try:
-        comments = submission.comments.list()
-    except Forbidden:
-        log.write('linebreaker-bot has been banned from r/{}!'.format(submission.subreddit))
-        continue
     nparts = 1 #number of messages needed to fully paragraphify
     words = submission.selftext.split(' ')
     if isValid(submission.selftext):
@@ -169,46 +162,3 @@ for submission in subreddit.stream.submissions():
         except Forbidden:
             log.write('linebreaker-bot has been banned from r/{}!'.format(submission.subreddit))
             continue
-
-    #same as above but iterating over comments in a thread.
-    for comment in comments:
-        if isinstance(comment, MoreComments):
-            continue
-        nparts = 1
-        words = comment.body.split(' ')
-
-        if isValid(comment.body):
-            pass
-        else:
-            blocks = paragraphify(comment.body)
-            reply_str = ''
-            for block in blocks:
-                reply_str += block + '\n\n&nbsp;\n\n'
-            if (len(reply_str + block + bot_reply + bot_author) + 27) > COMMENT_MAX:
-                    reply_str = 'PART {}\n\n&nbsp;\n\n'.format(nparts) + reply_str
-                    try:
-                        comment.reply(reply_str)
-                        reply_str = ''
-                        nparts += 1
-                    except praw.exceptions.APIException:
-                        sleep(10)
-                        comment.reply(reply_str)
-                        reply_str = ''
-                        nparts += 1
-                    except Forbidden:
-                        log.write('linebreaker-bot has been banned from r/{}!'.format(submission.subreddit))
-                        continue
-
-            reply_str += bot_reply.format('/u/' + comment.author.name) + '\n\n' + bot_author
-
-            if(nparts > 1):
-                reply_str =  'PART {}\n\n&nbsp;\n\n'.format(nparts) + reply_str
-
-            try:
-                comment.reply(reply_str)
-            except praw.exceptions.APIException:
-                sleep(10)
-                comment.reply(reply_str)
-            except Forbidden:
-                log.write('linebreaker-bot has been banned from r/{}!'.format(submission.subreddit))
-                continue
