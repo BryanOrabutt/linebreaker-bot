@@ -111,7 +111,7 @@ reddit = praw.Reddit(user_agent='Linebreaker (by /u/otiskingofbidness)',
                      username=username, password=password)
 
 #choose a subreddit to watch
-subreddit = reddit.subreddit('linebreakerbot')
+subreddit = reddit.subreddit('all')
 
 #watch submission stream of the subreddit for new submissions (starting with the 100 previous posts)
 for submission in subreddit.stream.submissions():
