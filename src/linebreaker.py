@@ -1,16 +1,20 @@
 import praw
 from prawcore.exceptions import Forbidden
+from prawcore.exceptions import ServerError
 from time import sleep
 from datetime import datetime
 import json
+from os import listdir
+from os.path import isfile, join
 
 COMMENT_MAX = 10000
 WORDS_PER_PARAGRAPH = 125
 punctuation_list = ['.','!','?']
 
-bot_reply = "Hey {}, it looks like you posted a wall of text. I have seperated it into paragraphs for you!"
+bot_reply = "Hey {}, it looks like you posted a wall of text. I have separated it into paragraphs for you!"
 bot_author = "This bot is maintained by /u/otiskingofbidness. Please let me know if you encounter any issues with it :)"
 opt_out = "_Send a private message with title **'opt out'** to prevent this bot from seeing your posts in the future._"
+stats = 'r/{} has contributed {}% of all walls of text analyzed so far!'
 opt_in = "Sorry! I wont bother you any further! Please message /u/otiskingofbidness if youd like to opt back in at any point!"
 
 '''
@@ -97,6 +101,8 @@ def isValid(str, bans, sub_name, user):
     for sub in bans['posts-only']:
             retval = retval or (sub_name == sub)
 
+    retval = retval or (sub_name == 'SocialMixer')
+
     dnd = open('./do_not_disturb.txt', 'r')
 
     for dnd_user in dnd.readlines():
@@ -105,6 +111,19 @@ def isValid(str, bans, sub_name, user):
     dnd.close()
 
     return retval
+
+def wallRatio(sub_name):
+    path = '../data/'
+    count = 0
+    files = [f for f in listdir(path) if isfile(join(path, f))]
+
+    total = len(files)
+
+    for file in files:
+        if sub_name in file:
+            count += 1
+
+    return float(count/total) * 100.0
 
 #Read OAuth keys and reddit login credentials from file.
 try:
@@ -137,66 +156,90 @@ reddit = praw.Reddit(user_agent='Linebreaker bot (by /u/otiskingofbidness)',
 
 #choose a subreddit to watch
 subreddit = reddit.subreddit('all')
-log = open("./linebreaker-bot.log", "a+")
 
 bottiquette = reddit.subreddit('Bottiquette').wiki['robots_txt_json']
 bans = json.loads(bottiquette.content_md)
 
 #watch submission stream of the subreddit for new submissions (starting with the 100 previous posts)
-for submission in subreddit.stream.submissions():
-    inbox = reddit.inbox
-    dnd_list = open("./do_not_disturb.txt", 'a+')
-    for message in inbox.unread():
-        message.mark_read()
-        if message.subject.lower() == 'opt out':
-            dnd_list.write(message.author.name + '\n')
-            message.reply(opt_in)
-    dnd_list.close()
+while True:
+    try:
+        log = open("./linebreaker-bot.log", "a+")
+        for submission in subreddit.stream.submissions():
+            inbox = reddit.inbox
+            dnd_list = open("./do_not_disturb.txt", 'a+')
 
-    nparts = 1 #number of messages needed to fully paragraphify
-    words = submission.selftext.split(' ')
-    if isValid(submission.selftext, bans, submission.subreddit.display_name, submission.author.name):
-        pass
-    else:
-        date_time = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
-        data_file_name = "../data/{}.txt".format(submission.subreddit.display_name+'_'+date_time)
-        data_file = open(data_file_name, 'w', encoding='utf-8')
-        data_file.write(submission.selftext)
-        data_file.close()
+            try:
+                for message in inbox.unread():
+                    message.mark_read()
+                    if message.subject.lower() == 'opt out':
+                        dnd_list.write(message.author.name + '\n')
+                        message.reply(opt_in)
+            except ServerError as e:
+                log.write("ERROR: " + str(e))
+                if 503 in e:
+                    sleep(30)
+                    for message in inbox.unread():
+                        message.mark_read()
+                        if message.subject.lower() == 'opt out':
+                            dnd_list.write(message.author.name + '\n')
+                            message.reply(opt_in)
 
-        blocks = paragraphify(submission.selftext) #list of paragraphs created
-        if len(blocks) == 1:
-            continue
+            dnd_list.close()
 
-        reply_str = ''
-        for block in blocks: #create new reply string using created paragraphs and adding linebreaks
-            reply_str += block + '\n\n&nbsp;\n\n'
-            if (len(reply_str + block) + 400) >= COMMENT_MAX: #adding a paragraph will exceed character limit
-                reply_str = 'PART {}\n\n&nbsp;\n\n'.format(nparts) + reply_str #add PART header
-                try: #try to post a comment
-                    submission.reply(reply_str)
-                    reply_str = ''
-                    nparts += 1
-                except praw.exceptions.APIException: #usually a rate limit exception. wait 10 seconds and try again
-                    sleep(10)
-                    submission.reply(reply_str)
-                    reply_str = ''
-                    nparts += 1
-                except Forbidden:
-                    log.write('linebreaker-bot has been banned from r/{}!'.format(submission.subreddit))
+            nparts = 1 #number of messages needed to fully paragraphify
+            words = submission.selftext.split(' ')
+            if isValid(submission.selftext, bans, submission.subreddit.display_name, submission.author.name):
+                pass
+            else:
+                sub_name = submission.subreddit.display_name
+                date_time = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
+                data_file_name = "../data/{}.txt".format(sub_name + '_' + date_time)
+                data_file = open(data_file_name, 'w', encoding='utf-8')
+                data_file.write(submission.selftext)
+                data_file.close()
+
+                blocks = paragraphify(submission.selftext) #list of paragraphs created
+                if len(blocks) == 1:
                     continue
 
+                reply_str = ''
+                for block in blocks: #create new reply string using created paragraphs and adding linebreaks
+                    reply_str += block + '\n\n&nbsp;\n\n'
+                    if (len(reply_str + block) + 600) >= COMMENT_MAX: #adding a paragraph will exceed character limit
+                        reply_str = 'PART {}\n\n&nbsp;\n\n'.format(nparts) + reply_str #add PART header
+                        try: #try to post a comment
+                            submission.reply(reply_str)
+                            reply_str = ''
+                            nparts += 1
+                        except praw.exceptions.APIException as e: #usually a rate limit exception. wait 10 seconds and try again
+                            sleep(10)
+                            submission.reply(reply_str)
+                            reply_str = ''
+                            nparts += 1
+                            log.write("ERROR: " + str(e))
+                        except Forbidden as e:
+                            log.write("ERROR: " + str(e))
+                            continue
 
-        reply_str += bot_reply.format('/u/' + submission.author.name) + '\n\n' + bot_author + '\n\n' + opt_out
 
-        if(nparts > 1):
-            reply_str =  'PART {}\n\n&nbsp;\n\n'.format(nparts) + reply_str
+                reply_str += bot_reply.format('/u/' + submission.author.name) + '\n\n' + bot_author + '\n\n' + opt_out
 
-        try: #add final comment
-            submission.reply(reply_str)
-        except praw.exceptions.APIException:
-            sleep(10)
-            submission.reply(reply_str)
-        except Forbidden:
-            log.write('linebreaker-bot has been banned from r/{}!'.format(submission.subreddit))
-            continue
+                if(nparts > 1):
+                    reply_str =  'PART {}\n\n&nbsp;\n\n'.format(nparts) + reply_str + '\n\n' + stats.format(sub_name, round(wallRatio(sub_name),2))
+
+                try: #add final comment
+                    submission.reply(reply_str)
+                except praw.exceptions.APIException as e:
+                    sleep(10)
+                    submission.reply(reply_str)
+                    log.write("ERROR: " + str(e))
+                except Forbidden as e:
+                    log.write("ERROR: " + str(e))
+                    continue
+
+            log.close()
+    except ServerError as e:
+        log.write('ERROR: ' + str(e))
+        continue
+    finally:
+        log.close()
