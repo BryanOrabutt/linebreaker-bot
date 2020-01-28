@@ -6,6 +6,7 @@ from datetime import datetime
 import json
 from os import listdir
 from os.path import isfile, join
+import re
 
 COMMENT_MAX = 10000
 WORDS_PER_PARAGRAPH = 125
@@ -88,27 +89,37 @@ def paragraphify(str):
 
     return paragraphs
 
+def isList(str):
+    l = 0
+    l += len(re.compile(r'- (.*?)\n', re.M).findall(str))
+    l += len(re.compile(r'\* (.*?)\n', re.M).findall(str))
+    l += len(re.compile(r'[0-9]+\) (.*?)\n', re.M).findall(str))
+    l += len(re.compile(r'[0-9]+\. (.*?)\n', re.M).findall(str))
+    return l > 0
+
 def isValid(str, bans, sub_name, user):
-    retval = '\n' in str
-    retval = retval or len(str.split(' ')) < 3*WORDS_PER_PARAGRAPH
-    retval = retval or '  \n' in str
-    retval = retval or '\\\n' in str
+    retval = len(str.split(' ')) < 3*WORDS_PER_PARAGRAPH
+    if retval == False:
+        retval = retval or isList(str)
+        retval = retval or '\n\n' in str
+        retval = retval or '  \n' in str
+        retval = retval or '\\\n' in str
 
-    for sub in bans['disallowed']:
-        retval = retval or (sub_name == sub)
-    for sub in bans['permission']:
+        for sub in bans['disallowed']:
             retval = retval or (sub_name == sub)
-    for sub in bans['posts-only']:
-            retval = retval or (sub_name == sub)
+        for sub in bans['permission']:
+                retval = retval or (sub_name == sub)
+        for sub in bans['posts-only']:
+                retval = retval or (sub_name == sub)
 
-    retval = retval or (sub_name == 'SocialMixer')
+        retval = retval or (sub_name == 'SocialMixer')
 
-    dnd = open('./do_not_disturb.txt', 'r')
+        dnd = open('./do_not_disturb.txt', 'r')
 
-    for dnd_user in dnd.readlines():
-        retval = retval or (user == dnd_user.strip())
+        for dnd_user in dnd.readlines():
+            retval = retval or (user == dnd_user.strip())
 
-    dnd.close()
+        dnd.close()
 
     return retval
 
@@ -155,7 +166,7 @@ reddit = praw.Reddit(user_agent='Linebreaker bot (by /u/otiskingofbidness)',
                      username=username, password=password)
 
 #choose a subreddit to watch
-subreddit = reddit.subreddit('all')
+subreddit = reddit.subreddit('linebreakerbot')
 
 bottiquette = reddit.subreddit('Bottiquette').wiki['robots_txt_json']
 bans = json.loads(bottiquette.content_md)
@@ -165,8 +176,10 @@ while True:
     try:
         log = open("./linebreaker-bot.log", "a+")
         for submission in subreddit.stream.submissions():
+            sub_name = submission.subreddit.display_name
             inbox = reddit.inbox
             dnd_list = open("./do_not_disturb.txt", 'a+')
+            print(sub_name)
 
             try:
                 for message in inbox.unread():
@@ -191,7 +204,6 @@ while True:
             if isValid(submission.selftext, bans, submission.subreddit.display_name, submission.author.name):
                 pass
             else:
-                sub_name = submission.subreddit.display_name
                 date_time = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
                 data_file_name = "../data/{}.txt".format(sub_name + '_' + date_time)
                 data_file = open(data_file_name, 'w', encoding='utf-8')
