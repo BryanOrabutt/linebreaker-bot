@@ -1,6 +1,7 @@
 import praw
 from prawcore.exceptions import Forbidden
 from prawcore.exceptions import ServerError
+from prawcore.exceptions import RequestException
 from time import sleep
 from datetime import datetime
 import json
@@ -113,6 +114,10 @@ def isValid(str, bans, sub_name, user):
                 retval = retval or (sub_name == sub)
 
         retval = retval or (sub_name == 'SocialMixer')
+        retval = retval or (sub_name == 'mentalhealth')
+        retval = retval or (sub_name == 'abuse')
+        retval = retval or (sub_name == 'ChronicIllness')
+        retval = retval or (sub_name[0:2] == 'u_')
 
         dnd = open('./do_not_disturb.txt', 'r')
 
@@ -166,7 +171,7 @@ reddit = praw.Reddit(user_agent='Linebreaker bot (by /u/otiskingofbidness)',
                      username=username, password=password)
 
 #choose a subreddit to watch
-subreddit = reddit.subreddit('linebreakerbot')
+subreddit = reddit.subreddit('all')
 
 bottiquette = reddit.subreddit('Bottiquette').wiki['robots_txt_json']
 bans = json.loads(bottiquette.content_md)
@@ -179,7 +184,6 @@ while True:
             sub_name = submission.subreddit.display_name
             inbox = reddit.inbox
             dnd_list = open("./do_not_disturb.txt", 'a+')
-            print(sub_name)
 
             try:
                 for message in inbox.unread():
@@ -188,14 +192,21 @@ while True:
                         dnd_list.write(message.author.name + '\n')
                         message.reply(opt_in)
             except ServerError as e:
-                log.write("ERROR: " + str(e))
-                if 503 in e:
+                log.write("ERROR: " + str(e) + "\n")
+                if '503' in str(e):
                     sleep(30)
                     for message in inbox.unread():
                         message.mark_read()
                         if message.subject.lower() == 'opt out':
                             dnd_list.write(message.author.name + '\n')
                             message.reply(opt_in)
+            except RequestException as e:
+                log.write("ERROR" + str(e) + "\n")
+                try:
+                    dnd_list.close()
+                    continue
+                except:
+                    continue
 
             dnd_list.close()
 
@@ -228,30 +239,40 @@ while True:
                             submission.reply(reply_str)
                             reply_str = ''
                             nparts += 1
-                            log.write("ERROR: " + str(e))
+                            log.write("ERROR: " + str(e) + "\n")
                         except Forbidden as e:
-                            log.write("ERROR: " + str(e))
+                            log.write("ERROR: " + str(e) + "\n")
                             continue
 
 
-                reply_str += bot_reply.format('/u/' + submission.author.name) + '\n\n' + bot_author + '\n\n' + opt_out
+                reply_str += bot_reply.format('/u/' + submission.author.name) + '\n\n' + bot_author + '\n\n' + \
+                             opt_out + '\n\n' + stats.format(sub_name, round(wallRatio(sub_name),2))
 
                 if(nparts > 1):
-                    reply_str =  'PART {}\n\n&nbsp;\n\n'.format(nparts) + reply_str + '\n\n' + stats.format(sub_name, round(wallRatio(sub_name),2))
+                    reply_str = 'PART {}\n\n&nbsp;\n\n'.format(nparts) + reply_str
 
                 try: #add final comment
                     submission.reply(reply_str)
                 except praw.exceptions.APIException as e:
                     sleep(10)
                     submission.reply(reply_str)
-                    log.write("ERROR: " + str(e))
+                    log.write("ERROR: " + str(e) + "\n")
                 except Forbidden as e:
-                    log.write("ERROR: " + str(e))
+                    log.write("ERROR: " + str(e) + "\n")
                     continue
 
-            log.close()
+        log.close()
     except ServerError as e:
+        try:
+            log.close()
+        except:
+            pass
         log.write('ERROR: ' + str(e))
         continue
-    finally:
-        log.close()
+    except Forbidden as e:
+        try:
+            log.close()
+        except:
+            pass
+        log.write('ERROR: ' + str(e))
+        continue
