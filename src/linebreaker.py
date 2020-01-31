@@ -115,8 +115,13 @@ def isValid(str, bans, sub_name, user):
 
         retval = retval or (sub_name == 'SocialMixer')
         retval = retval or (sub_name == 'mentalhealth')
+        retval = retval or (sub_name == 'mentalillness')
+        retval = retval or (sub_name == 'emotionalabuse')
         retval = retval or (sub_name == 'abuse')
         retval = retval or (sub_name == 'ChronicIllness')
+        retval = retval or (sub_name == 'TrueOffMyChest')
+        retval = retval or (sub_name == 'OffMyChest')
+        retval = retval or (sub_name == 'depression_help')
         retval = retval or (sub_name[0:2] == 'u_')
 
         dnd = open('./do_not_disturb.txt', 'r')
@@ -188,7 +193,7 @@ while True:
             try:
                 for message in inbox.unread():
                     message.mark_read()
-                    if message.subject.lower() == 'opt out':
+                    if message.subject.lower() == 'opt out' or message.subject.lower() == 'opt-out':
                         dnd_list.write(message.author.name + '\n')
                         message.reply(opt_in)
             except ServerError as e:
