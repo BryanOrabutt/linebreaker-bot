@@ -102,9 +102,10 @@ def isValid(str, bans, sub_name, user):
     retval = len(str.split(' ')) < 3*WORDS_PER_PARAGRAPH
     if retval == False:
         retval = retval or isList(str)
-        retval = retval or '\n\n' in str
-        retval = retval or '  \n' in str
-        retval = retval or '\\\n' in str
+        retval = retval or ('\n' in str)
+        retval = retval or ('\n\n' in str)
+        retval = retval or ('  \n' in str)
+        retval = retval or ('\\\n' in str)
 
         for sub in bans['disallowed']:
             retval = retval or (sub_name == sub)
@@ -117,6 +118,7 @@ def isValid(str, bans, sub_name, user):
         retval = retval or (sub_name == 'mentalhealth')
         retval = retval or (sub_name == 'mentalillness')
         retval = retval or (sub_name == 'emotionalabuse')
+        retval = retval or (sub_name == 'MentalHealthSupport')
         retval = retval or (sub_name == 'abuse')
         retval = retval or (sub_name == 'ChronicIllness')
         retval = retval or (sub_name == 'TrueOffMyChest')
@@ -217,6 +219,14 @@ while True:
 
             nparts = 1 #number of messages needed to fully paragraphify
             words = submission.selftext.split(' ')
+
+            try:
+                if(submission.selftext == None) or (submission.author == None):
+                    continue
+            except:
+                log.close()
+                continue
+
             if isValid(submission.selftext, bans, submission.subreddit.display_name, submission.author.name):
                 pass
             else:
@@ -233,7 +243,7 @@ while True:
                 reply_str = ''
                 for block in blocks: #create new reply string using created paragraphs and adding linebreaks
                     reply_str += block + '\n\n&nbsp;\n\n'
-                    if (len(reply_str + block) + 600) >= COMMENT_MAX: #adding a paragraph will exceed character limit
+                    if (len(reply_str + block)) >= (COMMENT_MAX-500): #adding a paragraph will exceed character limit
                         reply_str = 'PART {}\n\n&nbsp;\n\n'.format(nparts) + reply_str #add PART header
                         try: #try to post a comment
                             submission.reply(reply_str)
@@ -250,7 +260,7 @@ while True:
                             continue
 
 
-                reply_str += bot_reply.format('/u/' + submission.author.name) + '\n\n' + bot_author + '\n\n' + \
+                reply_str += bot_reply.format('/u/' + submission.author.name) + '\n\n' + '\n\n' + \
                              opt_out + '\n\n' + stats.format(sub_name, round(wallRatio(sub_name),2))
 
                 if(nparts > 1):
@@ -279,5 +289,4 @@ while True:
             log.close()
         except:
             pass
-        log.write('ERROR: ' + str(e))
         continue
