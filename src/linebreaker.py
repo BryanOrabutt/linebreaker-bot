@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import praw
 from prawcore.exceptions import Forbidden
 from prawcore.exceptions import ServerError
@@ -126,7 +127,7 @@ def isValid(str, bans, sub_name, user):
         retval = retval or (sub_name == 'depression_help')
         retval = retval or (sub_name[0:2] == 'u_')
 
-        dnd = open('./do_not_disturb.txt', 'r')
+        dnd = open('/home/bastion/linebreaker-bot/src/do_not_disturb.txt', 'r')
 
         for dnd_user in dnd.readlines():
             retval = retval or (user == dnd_user.strip())
@@ -136,7 +137,7 @@ def isValid(str, bans, sub_name, user):
     return retval
 
 def wallRatio(sub_name):
-    path = '../data/'
+    path = '/home/bastion/linebreaker-bot/data/'
     count = 0
     files = [f for f in listdir(path) if isfile(join(path, f))]
 
@@ -150,7 +151,7 @@ def wallRatio(sub_name):
 
 #Read OAuth keys and reddit login credentials from file.
 try:
-    fp = open('../auth/linebreaker.key', 'r')
+    fp = open('/home/bastion/linebreaker-bot/auth/linebreaker.key', 'r')
     line = fp.readline()
     uid = line.partition(':')[2].strip()
     line = fp.readline()
@@ -161,7 +162,7 @@ finally:
     fp.close()
 
 try:
-    fp = open('../auth/linebreaker.login', 'r')
+    fp = open('/home/bastion/linebreaker-bot/auth/linebreaker.login', 'r')
     line = fp.readline()
     username = line.partition(':')[2].strip()
     line = fp.readline()
@@ -186,16 +187,19 @@ bans = json.loads(bottiquette.content_md)
 #watch submission stream of the subreddit for new submissions (starting with the 100 previous posts)
 while True:
     try:
-        log = open("./linebreaker-bot.log", "a+")
+        log = open("/home/bastion/linebreaker-bot/src/linebreaker-bot.log", "a+")
         for submission in subreddit.stream.submissions():
             sub_name = submission.subreddit.display_name
             inbox = reddit.inbox
-            dnd_list = open("./do_not_disturb.txt", 'a+')
+            dnd_list = open("/home/bastion/linebreaker-bot/src/do_not_disturb.txt", 'a+')
 
             try:
                 for message in inbox.unread():
                     message.mark_read()
                     if message.subject.lower() == 'opt out' or message.subject.lower() == 'opt-out':
+                        dnd_list.write(message.author.name + '\n')
+                        message.reply(opt_in)
+                    elif message.body.lower() == 'opt out' or message.body.lower() == 'opt-out':
                         dnd_list.write(message.author.name + '\n')
                         message.reply(opt_in)
             except ServerError as e:
@@ -231,7 +235,7 @@ while True:
                 pass
             else:
                 date_time = datetime.now().strftime("%m_%d_%Y_%H_%M_%S")
-                data_file_name = "../data/{}.txt".format(sub_name + '_' + date_time)
+                data_file_name = "/home/bastion/linebreaker-bot/data/{}.txt".format(sub_name + '_' + date_time)
                 data_file = open(data_file_name, 'w', encoding='utf-8')
                 data_file.write(submission.selftext)
                 data_file.close()
@@ -289,4 +293,4 @@ while True:
             log.close()
         except:
             pass
-        continue
+        contnue
